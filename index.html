@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prize Distributor</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+        input, button, select { margin: 5px; padding: 10px; width: 100%; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid black; padding: 10px; text-align: center; }
+        .manual-input { display: flex; gap: 10px; margin-bottom: 5px; }
+        .manual-input input { flex: 1; }
+    </style>
+</head>
+<body>
+    <h2>Prize Distribution Tool</h2>
+    <label>Total Prize Pool: $<input type="number" id="totalPrize" value="100"></label>
+    <label>Participants: <input type="number" id="participants" value="10"></label>
+
+    <h3>Manual Prize Inputs</h3>
+    <div id="manualPrizes"></div>
+    <button onclick="addPrizeInput()">Add Prize</button><br><br>
+
+    <h3>Distribution Mode</h3>
+    <select id="distributionMode" onchange="calculatePrizes()">
+        <option value="equal">Equal Split</option>
+        <option value="linear">Linear Decrease</option>
+        <option value="exponential">Exponential Decrease</option>
+    </select>
+
+    <button onclick="calculatePrizes()">Distribute Prizes</button>
+
+    <h3>Results</h3>
+    <table>
+        <thead>
+            <tr><th>Position</th><th>Prize ($)</th></tr>
+        </thead>
+        <tbody id="resultsTable"></tbody>
+    </table>
+
+    <script>
+        function addPrizeInput() {
+            const div = document.createElement("div");
+            div.className = "manual-input";
+            div.innerHTML = `
+                <input type="number" class="position" min="1" placeholder="Position">
+                <input type="number" class="amount" min="1" placeholder="Prize Amount">
+                <button onclick="this.parentElement.remove()">Remove</button>
+            `;
+            document.getElementById("manualPrizes").appendChild(div);
+        }
+
+        function calculatePrizes() {
+            const totalPrize = parseInt(document.getElementById("totalPrize").value);
+            const participants = parseInt(document.getElementById("participants").value);
+            const mode = document.getElementById("distributionMode").value;
+
+            let fixedPrizes = [];
+            let usedPrize = 0;
+            let prizeMap = {};
+
+            document.querySelectorAll(".manual-input").forEach(input => {
+                let position = parseInt(input.querySelector(".position").value);
+                let amount = parseInt(input.querySelector(".amount").value);
+                if (position && amount) {
+                    prizeMap[position] = amount;
+                    usedPrize += amount;
+                }
+            });
+
+            let remainingPrize = totalPrize - usedPrize;
+            let openSlots = [];
+
+            for (let i = 1; i <= participants; i++) {
+                if (!prizeMap[i]) openSlots.push(i);
+            }
+
+            distributeRemainingPrize(openSlots, remainingPrize, mode, prizeMap);
+
+            let result = Object.entries(prizeMap).map(([pos, amount]) => ({
+                position: parseInt(pos),
+                amount
+            })).sort((a, b) => a.position - b.position);
+
+            let tableBody = document.getElementById("resultsTable");
+            tableBody.innerHTML = "";
+            result.forEach(row => {
+                let tr = document.createElement("tr");
+                tr.innerHTML = `<td>${row.position}</td><td>$${row.amount}</td>`;
+                tableBody.appendChild(tr);
+            });
+        }
+
+        function distributeRemainingPrize(positions, totalAmount, mode, prizeMap) {
+            let n = positions.length;
+
+            if (mode === "equal") {
+                let perPerson = Math.floor(totalAmount / n);
+                let remainder = totalAmount % n;
+                positions.forEach((pos, index) => {
+                    prizeMap[pos] = perPerson + (index < remainder ? 1 : 0);
+                });
+
+            } else if (mode === "linear") {
+                let totalWeight = (n * (n + 1)) / 2;
+                let unitValue = Math.floor(totalAmount / totalWeight);
+                let remainder = totalAmount % totalWeight;
+
+                positions.forEach((pos, index) => {
+                    let weight = n - index;
+                    prizeMap[pos] = unitValue * weight;
+                });
+
+                // Adjust for remainder
+                positions.slice(0, remainder).forEach(pos => prizeMap[pos] += 1);
+
+            } else if (mode === "exponential") {
+                let sumWeights = 0;
+                let weights = positions.map((_, i) => Math.pow(2, n - i - 1));
+
+                sumWeights = weights.reduce((sum, w) => sum + w, 0);
+                let unitValue = Math.floor(totalAmount / sumWeights);
+                let remainder = totalAmount % sumWeights;
+
+                positions.forEach((pos, index) => {
+                    prizeMap[pos] = unitValue * weights[index];
+                });
+
+                // Adjust for remainder
+                positions.slice(0, remainder).forEach(pos => prizeMap[pos] += 1);
+            }
+        }
+    </script>
+</body>
+</html>
