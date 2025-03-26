@@ -102,7 +102,6 @@
 
         function distributeRemainingPrize(positions, totalAmount, mode, prizeMap) {
             let n = positions.length;
-
             if (n === 0) return;
 
             if (mode === "equal") {
@@ -113,29 +112,29 @@
                 });
 
             } else if (mode === "linear") {
-                let totalWeight = (n * (n + 1)) / 2;
-                let unitValue = Math.floor(totalAmount / totalWeight);
+                let totalWeight = (n * (n + 1)) / 2; // Sum of 1 to n
+                let baseValue = Math.floor(totalAmount / totalWeight);
                 let remainder = totalAmount % totalWeight;
 
                 positions.forEach((pos, index) => {
                     let weight = n - index;
-                    prizeMap[pos] = unitValue * weight;
+                    prizeMap[pos] = baseValue * weight;
                 });
 
+                // Distribute remaining amount to top positions
                 positions.slice(0, remainder).forEach(pos => prizeMap[pos] += 1);
 
             } else if (mode === "exponential") {
-                let sumWeights = 0;
                 let weights = positions.map((_, i) => Math.pow(2, n - i - 1));
-
-                sumWeights = weights.reduce((sum, w) => sum + w, 0);
-                let unitValue = Math.floor(totalAmount / sumWeights);
+                let sumWeights = weights.reduce((sum, w) => sum + w, 0);
+                let baseValue = Math.floor(totalAmount / sumWeights);
                 let remainder = totalAmount % sumWeights;
 
                 positions.forEach((pos, index) => {
-                    prizeMap[pos] = unitValue * weights[index];
+                    prizeMap[pos] = baseValue * weights[index];
                 });
 
+                // Distribute remaining amount to top positions
                 positions.slice(0, remainder).forEach(pos => prizeMap[pos] += 1);
             }
         }
