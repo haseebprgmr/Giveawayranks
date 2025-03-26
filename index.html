@@ -3,116 +3,113 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prize Distributor</title>
+    <title>Prize Distribution</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; }
-        input, button, select { margin: 5px; padding: 10px; width: 100%; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid black; padding: 10px; text-align: center; }
-        .manual-prize-section { background: #f8f8f8; padding: 10px; margin-top: 10px; border-radius: 5px; }
-        .manual-input { display: flex; gap: 10px; margin-bottom: 5px; }
-        .manual-input input { flex: 1; }
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+        input, select, button {
+            margin: 5px;
+            padding: 10px;
+        }
+        table {
+            margin: auto;
+            border-collapse: collapse;
+            width: 50%;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 10px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
-    <h2>Prize Distribution Tool</h2>
 
-    <label>Total Prize Pool: $<input type="number" id="totalPrize" value="100"></label>
-    <label>Participants: <input type="number" id="participants" value="10"></label>
+    <h1>Prize Distribution App</h1>
 
-    <h3>Manual Prize Assignments</h3>
-    <div class="manual-prize-section" id="manualPrizes"></div>
-    <button onclick="addPrizeInput()">Add Manual Prize</button><br><br>
+    <label>Total Prize Pool: $</label>
+    <input type="number" id="totalPrize" value="100" min="1"><br>
 
-    <h3>Select Distribution Mode</h3>
-    <select id="distributionMode" onchange="calculatePrizes()">
-        <option value="equal">Equal Split</option>
+    <label>Number of Participants:</label>
+    <input type="number" id="numParticipants" value="20" min="2"><br>
+
+    <label>Distribution Mode:</label>
+    <select id="distributionMode">
         <option value="linear">Linear Decrease</option>
         <option value="exponential">Exponential Decrease</option>
-    </select>
+    </select><br>
+
+    <h3>Manual Prize Assignments:</h3>
+    <div id="manualPrizes"></div>
 
     <button onclick="calculatePrizes()">Distribute Prizes</button>
 
-    <h3>Results</h3>
+    <h3>Final Prize Distribution:</h3>
     <table>
         <thead>
-            <tr><th>Position</th><th>Prize ($)</th></tr>
+            <tr>
+                <th>Position</th>
+                <th>Prize ($)</th>
+            </tr>
         </thead>
-        <tbody id="resultsTable"></tbody>
+        <tbody id="prizeTable"></tbody>
     </table>
 
     <script>
-        function addPrizeInput() {
-            const div = document.createElement("div");
-            div.className = "manual-input";
-            div.innerHTML = `
-                <label>Position: <input type="number" class="position" min="1" placeholder="Position"></label>
-                <label>Prize Amount: $<input type="number" class="amount" min="1" placeholder="Prize Amount"></label>
-                <button onclick="this.parentElement.remove()">Remove</button>
-            `;
-            document.getElementById("manualPrizes").appendChild(div);
+        function updateManualInputs() {
+            let numParticipants = parseInt(document.getElementById("numParticipants").value);
+            let container = document.getElementById("manualPrizes");
+            container.innerHTML = "";
+
+            for (let i = 1; i <= numParticipants; i++) {
+                container.innerHTML += `
+                    <label>Position ${i}: </label>
+                    <input type="number" id="prize_${i}" min="0" value="0"><br>
+                `;
+            }
         }
 
         function calculatePrizes() {
-            const totalPrize = parseInt(document.getElementById("totalPrize").value);
-            const participants = parseInt(document.getElementById("participants").value);
-            const mode = document.getElementById("distributionMode").value;
-
+            let totalPrize = parseInt(document.getElementById("totalPrize").value);
+            let numParticipants = parseInt(document.getElementById("numParticipants").value);
+            let mode = document.getElementById("distributionMode").value;
             let prizeMap = {};
-            let usedPrize = 0;
-            let openSlots = [];
+            let assignedTotal = 0;
+            let unassignedPositions = [];
 
-            // Collect manually set prizes
-            document.querySelectorAll(".manual-input").forEach(input => {
-                let position = parseInt(input.querySelector(".position").value);
-                let amount = parseInt(input.querySelector(".amount").value);
-                if (position && amount && position <= participants) {
-                    prizeMap[position] = amount;
-                    usedPrize += amount;
+            // Collect manually assigned prizes
+            for (let i = 1; i <= numParticipants; i++) {
+                let manualPrize = parseInt(document.getElementById(`prize_${i}`).value) || 0;
+                if (manualPrize > 0) {
+                    prizeMap[i] = manualPrize;
+                    assignedTotal += manualPrize;
+                } else {
+                    unassignedPositions.push(i);
                 }
-            });
+            }
 
-            let remainingPrize = totalPrize - usedPrize;
-
+            let remainingPrize = totalPrize - assignedTotal;
             if (remainingPrize < 0) {
-                alert("Error: Assigned prizes exceed total prize pool.");
+                alert("Error: Manual assignments exceed total prize pool!");
                 return;
             }
 
-            // Find open positions
-            for (let i = 1; i <= participants; i++) {
-                if (!prizeMap[i]) openSlots.push(i);
-            }
+            // Distribute remaining prize
+            distributeRemainingPrize(unassignedPositions, remainingPrize, mode, prizeMap);
 
-            distributeRemainingPrize(openSlots, remainingPrize, mode, prizeMap);
-
-            let result = Object.entries(prizeMap).map(([pos, amount]) => ({
-                position: parseInt(pos),
-                amount
-            })).sort((a, b) => a.position - b.position);
-
-            let tableBody = document.getElementById("resultsTable");
-            tableBody.innerHTML = "";
-            result.forEach(row => {
-                let tr = document.createElement("tr");
-                tr.innerHTML = `<td>${row.position}</td><td>$${row.amount}</td>`;
-                tableBody.appendChild(tr);
-            });
+            // Display results
+            displayPrizes(prizeMap);
         }
 
         function distributeRemainingPrize(positions, totalAmount, mode, prizeMap) {
             let n = positions.length;
             if (n === 0) return;
 
-            if (mode === "equal") {
-                let perPerson = Math.floor(totalAmount / n);
-                let remainder = totalAmount % n;
-                positions.forEach((pos, index) => {
-                    prizeMap[pos] = perPerson + (index < remainder ? 1 : 0);
-                });
-
-            } else if (mode === "linear") {
-                let totalWeight = (n * (n + 1)) / 2; // Sum of 1 to n
+            if (mode === "linear") {
+                let totalWeight = (n * (n + 1)) / 2;
                 let baseValue = Math.floor(totalAmount / totalWeight);
                 let remainder = totalAmount % totalWeight;
 
@@ -121,23 +118,38 @@
                     prizeMap[pos] = baseValue * weight;
                 });
 
-                // Distribute remaining amount to top positions
+                // Distribute remainder to top positions
                 positions.slice(0, remainder).forEach(pos => prizeMap[pos] += 1);
 
             } else if (mode === "exponential") {
-                let weights = positions.map((_, i) => Math.pow(2, n - i - 1));
+                let weights = positions.map((_, i) => Math.pow(2.5, n - i - 1));
                 let sumWeights = weights.reduce((sum, w) => sum + w, 0);
                 let baseValue = Math.floor(totalAmount / sumWeights);
                 let remainder = totalAmount % sumWeights;
 
                 positions.forEach((pos, index) => {
-                    prizeMap[pos] = baseValue * weights[index];
+                    prizeMap[pos] = Math.floor(baseValue * weights[index]);
                 });
 
-                // Distribute remaining amount to top positions
+                // Distribute remainder to top positions
                 positions.slice(0, remainder).forEach(pos => prizeMap[pos] += 1);
             }
         }
+
+        function displayPrizes(prizeMap) {
+            let tableBody = document.getElementById("prizeTable");
+            tableBody.innerHTML = "";
+
+            let sortedPositions = Object.keys(prizeMap).map(Number).sort((a, b) => a - b);
+            sortedPositions.forEach(position => {
+                let row = `<tr><td>${position}</td><td>${prizeMap[position]}</td></tr>`;
+                tableBody.innerHTML += row;
+            });
+        }
+
+        document.getElementById("numParticipants").addEventListener("change", updateManualInputs);
+        window.onload = updateManualInputs;
     </script>
+
 </body>
 </html>
