@@ -62,10 +62,11 @@
             let usedPrize = 0;
             let openSlots = [];
 
+            // Collect manually set prizes
             document.querySelectorAll(".manual-input").forEach(input => {
                 let position = parseInt(input.querySelector(".position").value);
                 let amount = parseInt(input.querySelector(".amount").value);
-                if (position && amount) {
+                if (position && amount && position <= participants) {
                     prizeMap[position] = amount;
                     usedPrize += amount;
                 }
@@ -73,6 +74,12 @@
 
             let remainingPrize = totalPrize - usedPrize;
 
+            if (remainingPrize < 0) {
+                alert("Error: Assigned prizes exceed total prize pool.");
+                return;
+            }
+
+            // Find open positions
             for (let i = 1; i <= participants; i++) {
                 if (!prizeMap[i]) openSlots.push(i);
             }
